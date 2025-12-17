@@ -2,9 +2,9 @@ import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routers import auth, cards, card_lists
+from routers import auth, cards, card_lists
 
-app = FastAPI(title="SmartCards Backend")
+app = FastAPI(title="cards from text")
 
 
 origins = [

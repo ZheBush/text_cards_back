@@ -9,7 +9,7 @@ from app.core.security import get_current_user
 from app.core.utils import generate_uuid
 from app.models.card import Card
 from app.models.card_list import CardList
-from app.schemas.card import CardCreate, CardResponse, CardUpdate
+from app.schemas.card import CardCreate, CardResponse
 
 router = APIRouter()
 

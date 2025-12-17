@@ -1,6 +1,5 @@
 import json
 import re
-
 import httpx
 
 LLM_URL = "http://ollama:11434/api/generate"
@@ -64,28 +63,23 @@ async def call_llm_once(text: str):
 
 
 def safe_parse_json(text: str):
+
     text = text.strip()
-
-    # убираем блоки ```
     text = re.sub(r"```.*?```", "", text, flags=re.DOTALL)
-
-    # убираем ```json отдельные
     text = text.replace("```json", "").replace("```", "")
 
-    # выбрасываем всё вне массива
     match = re.search(r"\[.*\]", text, re.DOTALL)
+
     if not match:
-        print("⚠️ NONE JSON → fallback []")
+        print("NONE JSON → fallback []")
         return []
 
     json_text = match.group()
-
-    # чистка мусора типа static_json:
     json_text = re.sub(r"static_json\s*:", "", json_text)
 
     try:
         return json.loads(json_text)
     except Exception as e:
-        print("❌ JSON PARSE FAIL", e)
+        print("JSON PARSE FAIL", e)
         print(json_text)
         return []
