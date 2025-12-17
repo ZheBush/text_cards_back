@@ -2,17 +2,17 @@ from pydantic import BaseModel
 from typing import Optional
 
 
-class FlashcardCreate(BaseModel):
+class CardCreate(BaseModel):
     question: str
     answer: str
 
 
-class FlashcardUpdate(BaseModel):
+class CardUpdate(BaseModel):
     question: Optional[str] = None
     answer: Optional[str] = None
 
 
-class FlashcardResponse(BaseModel):
+class CardResponse(BaseModel):
     id: str
     question: str
     answer: str

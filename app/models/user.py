@@ -14,4 +14,4 @@ class User(Base):
     full_name = Column(String, nullable=True)
     created_at = Column(DateTime(timezone=True), default=datetime.now(timezone.utc))
 
-    groups = relationship("Group", back_populates="user", cascade="all, delete-orphan")
+    card_lists = relationship("CardList", back_populates="user", cascade="all, delete-orphan")

@@ -2,7 +2,7 @@ import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routers import auth, flashcards, groups
+from app.routers import auth, cards, card_lists
 
 app = FastAPI(title="SmartCards Backend")
 
@@ -22,8 +22,8 @@ app.add_middleware(
 )
 
 app.include_router(auth.router, prefix="/auth", tags=["auth"])
-app.include_router(groups.router, prefix="/groups", tags=["groups"])
-app.include_router(flashcards.router, prefix="/flashcards", tags=["flashcards"])
+app.include_router(card_lists.router, prefix="/card_lists", tags=["card_lists"])
+app.include_router(cards.router, prefix="/cards", tags=["cards"])
 
 if __name__ == "__main__":
     uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)

@@ -36,13 +36,15 @@ async def get_user_by_email(email: str, db: AsyncSession):
 
 
 async def get_current_user(
-    token: str = Depends(oauth2_scheme), db: AsyncSession = Depends(get_db)
+        token: str = Depends(oauth2_scheme),
+        db: AsyncSession = Depends(get_db)
 ):
     credentials_exception = HTTPException(
         status_code=401,
         detail="Invalid token",
         headers={"WWW-Authenticate": "Bearer"},
     )
+
     try:
         payload = jwt.decode(
             token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
@@ -50,9 +52,13 @@ async def get_current_user(
         email = payload.get("sub")
         if email is None:
             raise credentials_exception
+
     except JWTError:
         raise credentials_exception
+
     user = await get_user_by_email(email, db)
+
     if user is None:
         raise credentials_exception
+
     return user
