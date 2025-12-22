@@ -10,17 +10,18 @@ from app.core.utils import generate_uuid
 from app.models.card import Card
 from app.models.card_list import CardList
 from app.schemas.card import CardCreate, CardResponse
+from app.schemas.card_list import CardListResponse
 
 router = APIRouter()
 
 
-@router.get("/card_list/{card_id}", response_model = List[CardResponse])
+@router.get("/card_list/{card_list_id}", response_model = List[CardResponse])
 async def get_cards_from_list(
-        card_id: str,
+        card_list_id: str,
         current_user = Depends(get_current_user),
         db: AsyncSession = Depends(get_db),
 ):
-    query = select(Card).where(Card.card_list_id == card_id, Card.user_id == current_user.id)
+    query = select(Card).where(Card.card_list_id == card_list_id, Card.user_id == current_user.id)
     result = await db.execute(query)
 
     return result.scalars().all()
@@ -35,9 +36,9 @@ async def create_card(
 ):
     query = select(CardList).where(CardList.id == card_list_id, CardList.user_id == current_user.id)
     res = await db.execute(query)
-    group = res.scalars().first()
+    card_list = res.scalars().first()
 
-    if not group:
+    if not card_list:
         raise HTTPException(
             status_code = 404,
             detail = "Cards not found"
@@ -57,13 +58,13 @@ async def create_card(
     return card
 
 
-# @router.delete("/{card_id}")
+# @router.delete("/{card_list_id}")
 # async def delete_card(
-#     card_id: str,
+#     card_list_id: str,
 #     current_user = Depends(get_current_user),
 #     db: AsyncSession = Depends(get_db),
 # ):
-#     query = select(Card).where(Card.id == card_id)
+#     query = select(Card).where(Card.id == card_list_id)
 #     res = await db.execute(query)
 #     card = res.scalars().first()
 #
@@ -73,19 +74,19 @@ async def create_card(
 #             detail="Card not found"
 #         )
 #
-#     await db.execute(delete(Card).where(Card.id == card_id))
+#     await db.execute(delete(Card).where(Card.id == card_list_id))
 #     await db.commit()
 #     return {"detail": "Card deleted"}
 
 
-# @router.put("/{card_id}", response_model=CardResponse)
+# @router.put("/{card_list_id}", response_model=CardResponse)
 # async def update_card(
-#     card_id: str,
+#     card_list_id: str,
 #     updated_data: CardUpdate,
 #     current_user = Depends(get_current_user),
 #     db: AsyncSession = Depends(get_db),
 # ):
-#     query = select(Card).where(Card.id == card_id)
+#     query = select(Card).where(Card.id == card_list_id)
 #     res = await db.execute(query)
 #     card = res.scalars().first()
 #

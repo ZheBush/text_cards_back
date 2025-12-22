@@ -15,3 +15,4 @@ class User(Base):
     created_at = Column(DateTime(timezone=True), default=datetime.now(timezone.utc))
 
     card_lists = relationship("CardList", back_populates="user", cascade="all, delete-orphan")
+

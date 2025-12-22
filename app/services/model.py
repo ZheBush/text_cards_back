@@ -6,17 +6,17 @@ LLM_URL = "http://ollama:11434/api/generate"
 MODEL = "mistral"
 
 
-async def generate_flashcards(text: str, retries=2):
+async def generate_cards(text: str, retries=2):
     for attempt in range(retries + 1):
         try:
-            return await call_llm_once(text)
+            return await call_model(text)
         except Exception as e:
             print(f"LLM FAILED attempt {attempt+1}: {e}")
             if attempt == retries:
                 return []
 
 
-async def call_llm_once(text: str):
+async def call_model(text: str):
     prompt = f"""
     РАЗДЕЛИ ТЕКСТ на смысловые блоки и к каждому блоку напиши вопрос.
     question - твой вопрос, answer - смысловой блок.
@@ -59,16 +59,16 @@ async def call_llm_once(text: str):
     print("LLM RAW:")
     print(raw)
 
-    return safe_parse_json(raw)
+    return parse_json(raw)
 
 
-def safe_parse_json(text: str):
+def parse_json(text: str):
 
     text = text.strip()
     text = re.sub(r"```.*?```", "", text, flags=re.DOTALL)
     text = text.replace("```json", "").replace("```", "")
 
-    match = re.search(r"\[.*\]", text, re.DOTALL)
+    match = re.search(r"\[.*]", text, re.DOTALL)
 
     if not match:
         print("NONE JSON → fallback []")

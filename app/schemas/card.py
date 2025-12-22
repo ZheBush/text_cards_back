@@ -17,4 +17,4 @@ class CardResponse(BaseModel):
     question: str
     answer: str
     user_id: str
-    group_id: str
+    card_list_id: str

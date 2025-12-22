@@ -1,14 +1,14 @@
 services:
   db:
     image: postgres:16
-    container_name: smartcards-db
+    container_name: cards-db
     restart: always
     ports:
       - "5432:5432"
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: smartcards
+      POSTGRES_DB: text_cards
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB" ]
       interval: 5s
@@ -19,13 +19,13 @@ services:
 
   backend:
     build: .
-    container_name: smartcards-backend
+    container_name: cards-backend
     depends_on:
       db:
         condition: service_healthy
     environment:
-      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/smartcards
-      - SECRET_KEY=super_secret_key_123
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/text_cards
+      - SECRET_KEY=your-super-secret-key-change-in-production
     command: >
       bash -c "alembic upgrade head && python -m app.main "
     ports:
@@ -36,7 +36,7 @@ services:
 
   ollama:
     image: ollama/ollama
-    container_name: smartcards-ai
+    container_name: cards-ai
     restart: unless-stopped
     ports:
       - "11434:11434"
