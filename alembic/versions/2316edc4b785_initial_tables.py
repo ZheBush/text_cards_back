@@ -25,7 +25,7 @@ def upgrade() -> None:
     op.create_table(
         "card_lists",
         sa.Column("id", sa.String(), nullable=False),
-        sa.Column("filename", sa.String(), nullable=False),
+        sa.Column("title", sa.String(), nullable=False),
         sa.Column("user_id", sa.String(), nullable=False),
         sa.ForeignKeyConstraint(
             ["user_id"],

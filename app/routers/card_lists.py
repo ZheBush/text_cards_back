@@ -1,8 +1,7 @@
-from datetime import datetime, timezone
 from typing import List
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
-from sqlalchemy import delete, select
+from fastapi import APIRouter, Depends, File, UploadFile
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -11,8 +10,8 @@ from app.core.utils import generate_uuid
 from app.models.card import Card
 from app.models.card_list import CardList
 from app.schemas.card_list import FileUploadResponse, CardListResponse
+from app.services.extract_text import extract_text_from_pdf, extract_text_from_txt
 from app.services.model import generate_cards
-from app.services.pdf import extract_text_from_pdf
 
 router = APIRouter()
 
@@ -29,8 +28,54 @@ async def get_user_card_lists(
     return card_lists
 
 
-@router.post("/upload", response_model=FileUploadResponse)
-async def upload_file(
+@router.post("/upload_text", response_model=FileUploadResponse)
+async def upload_text(
+        text: str,
+        title: str,
+        current_user = Depends(get_current_user),
+        db: AsyncSession = Depends(get_db),
+):
+    card_list_id = generate_uuid()
+
+    new_card_list = CardList(
+        id=card_list_id,
+        title=title,
+        user_id=current_user.id,
+    )
+
+    db.add(new_card_list)
+    await db.flush()
+
+    cards = await generate_cards(text)
+    created_cards = []
+
+    for card in cards:
+        card = Card(
+                id=generate_uuid(),
+                question=card["question"],
+                answer=card["answer"],
+                user_id=current_user.id,
+                card_list_id=card_list_id,
+            )
+        db.add(card)
+        created_cards.append(card)
+
+    await db.commit()
+    await db.refresh(new_card_list)
+
+    for card in created_cards:
+        await db.refresh(card)
+
+    return {
+        "card_list_id": card_list_id,
+        "title": title,
+        "message": "File processed successfully",
+    }
+
+
+@router.post("/upload_txt", response_model=FileUploadResponse)
+async def upload_txt_file(
+        title: str,
         file: UploadFile = File(...),
         current_user = Depends(get_current_user),
         db: AsyncSession = Depends(get_db),
@@ -39,7 +84,55 @@ async def upload_file(
 
     new_card_list = CardList(
         id=card_list_id,
-        filename=file.filename,
+        title=title,
+        user_id=current_user.id,
+    )
+
+    db.add(new_card_list)
+    await db.flush()
+
+    content = await file.read()
+    text = extract_text_from_txt(content)
+
+    cards = await generate_cards(text)
+    created_cards = []
+
+    for card in cards:
+        card = Card(
+                id=generate_uuid(),
+                question=card["question"],
+                answer=card["answer"],
+                user_id=current_user.id,
+                card_list_id=card_list_id,
+            )
+        db.add(card)
+        created_cards.append(card)
+
+    await db.commit()
+    await db.refresh(new_card_list)
+
+    for card in created_cards:
+        await db.refresh(card)
+
+    return {
+        "card_list_id": card_list_id,
+        "title": title,
+        "message": "File processed successfully",
+    }
+
+
+@router.post("/upload_pdf", response_model=FileUploadResponse)
+async def upload_pdf_file(
+        title: str,
+        file: UploadFile = File(...),
+        current_user = Depends(get_current_user),
+        db: AsyncSession = Depends(get_db),
+):
+    card_list_id = generate_uuid()
+
+    new_card_list = CardList(
+        id=card_list_id,
+        title = title,
         user_id=current_user.id,
     )
 
@@ -71,29 +164,6 @@ async def upload_file(
 
     return {
         "card_list_id": card_list_id,
-        "filename": file.filename,
+        "title": title,
         "message": "File processed successfully",
     }
-#
-#
-# @router.delete("/{card_list_id}")
-# async def delete_card_list(
-#     card_list_id: str,
-#     current_user = Depends(get_current_user),
-#     db: AsyncSession = Depends(get_db),
-# ):
-#     query = select(CardList).where(CardList.id == card_list_id)
-#     res = await db.execute(query)
-#     group = res.scalars().first()
-#
-#     if not group or group.user_id != current_user.id:
-#         raise HTTPException(
-#             status_code=404,
-#             detail="CardList not found"
-#         )
-#
-#     await db.execute(delete(Card).where(Card.card_list_id == card_list_id))
-#     await db.execute(delete(CardList).where(CardList.id == card_list_id))
-#     await db.commit()
-#
-#     return {"detail": "CardList deleted"}

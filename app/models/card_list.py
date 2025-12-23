@@ -12,7 +12,7 @@ class CardList(Base):
     __tablename__ = "card_lists"
 
     id = Column(String, primary_key=True, default=generate_uuid)
-    filename = Column(String, nullable=False)
+    title = Column(String, nullable=False)
     user_id = Column(String, ForeignKey("users.id"), nullable=False)
 
     user = relationship("User", back_populates="card_lists")
