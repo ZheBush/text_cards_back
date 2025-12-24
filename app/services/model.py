@@ -6,19 +6,13 @@ LLM_URL = "http://ollama:11434/api/generate"
 MODEL = "mistral"
 
 
-async def generate_cards(text: str, retries=2):
-    for attempt in range(retries + 1):
-        try:
-            return await call_model(text)
-        except Exception as e:
-            print(f"LLM FAILED attempt {attempt+1}: {e}")
-            if attempt == retries:
-                return []
+async def generate_cards(text: str, cards_num: int):
+    return await call_model(text, cards_num)
 
 
-async def call_model(text: str):
+async def call_model(text: str, cards_num: int):
     prompt = f"""
-    Тебе дан текст. Ты дожен придумать вопросы к этому тексту и найти на них ответы в самом тексте.
+    Тебе дан текст. Ты дожен придумать {cards_num} вопросов к этому тексту и найти на них ответы в самом тексте.
     question - твой вопрос, answer - ответ.
     Необходимо вернуть json массив следующего формата:
     
@@ -28,7 +22,8 @@ async def call_model(text: str):
     ]
     
     Возвращать надо именно в таком формате, то есть не надо добавлять никакие комментарии.
-    Если по какой-то причине составить вопросы не получается, верни [], но только в крайнем случае
+    Если по какой-то причине составить вопросы не получается, верни [], но только в крайнем случае.
+    И вопросы, и ответы надо писать на русском языке.
     
     Текст, оп которому нужно составить вопросы приведён ниже:
     {text}

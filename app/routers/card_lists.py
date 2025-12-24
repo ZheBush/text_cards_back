@@ -32,6 +32,7 @@ async def get_user_card_lists(
 async def upload_text(
         text: str,
         title: str,
+        cards_num: int,
         current_user = Depends(get_current_user),
         db: AsyncSession = Depends(get_db),
 ):
@@ -46,7 +47,7 @@ async def upload_text(
     db.add(new_card_list)
     await db.flush()
 
-    cards = await generate_cards(text)
+    cards = await generate_cards(text, cards_num)
     created_cards = []
 
     for card in cards:
@@ -76,6 +77,7 @@ async def upload_text(
 @router.post("/upload_txt", response_model=FileUploadResponse)
 async def upload_txt_file(
         title: str,
+        cards_num: int,
         file: UploadFile = File(...),
         current_user = Depends(get_current_user),
         db: AsyncSession = Depends(get_db),
@@ -94,7 +96,7 @@ async def upload_txt_file(
     content = await file.read()
     text = extract_text_from_txt(content)
 
-    cards = await generate_cards(text)
+    cards = await generate_cards(text, cards_num)
     created_cards = []
 
     for card in cards:
@@ -124,6 +126,7 @@ async def upload_txt_file(
 @router.post("/upload_pdf", response_model=FileUploadResponse)
 async def upload_pdf_file(
         title: str,
+        cards_num: int,
         file: UploadFile = File(...),
         current_user = Depends(get_current_user),
         db: AsyncSession = Depends(get_db),
@@ -142,7 +145,7 @@ async def upload_pdf_file(
     content = await file.read()
     text = extract_text_from_pdf(content)
 
-    cards = await generate_cards(text)
+    cards = await generate_cards(text, cards_num)
     created_cards = []
 
     for card in cards:
