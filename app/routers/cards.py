@@ -1,7 +1,7 @@
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import delete, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -10,7 +10,6 @@ from app.core.utils import generate_uuid
 from app.models.card import Card
 from app.models.card_list import CardList
 from app.schemas.card import CardCreate, CardResponse
-from app.schemas.card_list import CardListResponse
 
 router = APIRouter()
 
@@ -55,4 +54,5 @@ async def create_card(
     db.add(card)
     await db.commit()
     await db.refresh(card)
+
     return card

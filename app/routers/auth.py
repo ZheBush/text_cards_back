@@ -24,7 +24,6 @@ async def register_user(
         user: UserCreate,
         db: AsyncSession = Depends(get_db)
 ):
-
     existing = await get_user_by_email(user.email, db)
 
     if existing:
@@ -37,11 +36,10 @@ async def register_user(
         id=generate_uuid(),
         email=user.email,
         password=hash_password(user.password),
-        full_name=user.full_name,
+        role=user.role
     )
 
     db.add(new_user)
-
     await db.commit()
     await db.refresh(new_user)
 
@@ -53,7 +51,6 @@ async def login_user(
         form_data: OAuth2PasswordRequestForm = Depends(),
         db: AsyncSession = Depends(get_db)
 ):
-
     user = await get_user_by_email(form_data.username, db)
 
     if not user or not verify_password(form_data.password, user.password):
@@ -68,6 +65,8 @@ async def login_user(
     )
 
     return Token(
-        access_token = access_token,
-        token_type = "bearer"
+        access_token=access_token,
+        token_type="bearer",
+        role=user.role,
+        user_id=user.id
     )
