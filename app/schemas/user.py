@@ -5,14 +5,14 @@ from typing import Optional
 
 
 class UserRole(str, Enum):
-    USER = "USER"
-    MANAGER = "MANAGER"
+    user = "user"
+    manager = "manager"
 
 
 class UserCreate(BaseModel):
     email: EmailStr
     password: str
-    role: UserRole = UserRole.USER
+    role: UserRole
 
 
 class UserResponse(BaseModel):

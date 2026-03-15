@@ -24,6 +24,7 @@ class Group(Base):
 
     creator = relationship('User', foreign_keys=[created_by])
     members = relationship('User', secondary=user_group, back_populates='groups')
+    card_lists = relationship('CardList', back_populates='group', cascade='all, delete-orphan')
 
     members_count = column_property(
         select(func.count(user_group.c.user_id))

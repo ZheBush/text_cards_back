@@ -8,8 +8,8 @@ from app.core.utils import generate_uuid
 
 
 class UserRole(str, enum.Enum):
-    USER = "USER"
-    MANAGER = "MANAGER"
+    user = "user"
+    manager = "manager"
 
 
 class User(Base):
@@ -19,7 +19,7 @@ class User(Base):
     email = Column(String, unique=True, nullable=False)
     password = Column(String, nullable=False)
     created_at = Column(DateTime(timezone=True), default=datetime.now(timezone.utc))
-    role = Column(Enum(UserRole), default=UserRole.USER, nullable=False)
+    role = Column(Enum(UserRole), default=UserRole.user, nullable=False)
 
     groups = relationship('Group', secondary='user_group', back_populates='members', lazy='selectin')
     card_lists = relationship("CardList", back_populates="user", cascade="all, delete-orphan")

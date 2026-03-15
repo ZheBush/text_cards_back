@@ -1,8 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select
 from app.core.database import get_db
 from app.core.security import get_current_user
+from app.models.card_list import CardList
 from app.models.user import User, UserRole
 from app.models.group import Group, user_group
 from app.schemas.group import GroupCreate, GroupResponse, AddUserToGroup
@@ -17,7 +18,7 @@ async def create_group(
         current_user: User = Depends(get_current_user),
         db: AsyncSession = Depends(get_db)
 ):
-    if current_user.role != UserRole.MANAGER:
+    if current_user.role != UserRole.manager:
         raise HTTPException(status_code=403, detail="Only managers can create groups")
 
     new_group = Group(
@@ -44,7 +45,7 @@ async def get_my_groups(
         current_user: User = Depends(get_current_user),
         db: AsyncSession = Depends(get_db)
 ):
-    if current_user.role == UserRole.MANAGER:
+    if current_user.role == UserRole.manager:
         result = await db.execute(
             select(Group).where(
                 (Group.created_by == current_user.id) |
@@ -71,6 +72,33 @@ async def get_my_groups(
     return groups
 
 
+@router.get("/{group_id}/card_lists")
+async def get_group_card_lists(
+        group_id: str,
+        current_user: User = Depends(get_current_user),
+        db: AsyncSession = Depends(get_db)
+):
+    stmt = select(user_group).where(
+        user_group.c.user_id == current_user.id,
+        user_group.c.group_id == group_id
+    )
+
+    result = await db.execute(stmt)
+
+    if not result.first():
+        raise HTTPException(
+            status_code=403,
+            detail="You are not a member of this group"
+        )
+
+    stmt = select(CardList).where(CardList.group_id == group_id)
+    result = await db.execute(stmt)
+
+    card_lists = result.scalars().all()
+
+    return card_lists
+
+
 @router.post("/{group_id}/add_user")
 async def add_user_to_group(
         group_id: str,
@@ -78,7 +106,7 @@ async def add_user_to_group(
         current_user: User = Depends(get_current_user),
         db: AsyncSession = Depends(get_db)
 ):
-    if current_user.role != UserRole.MANAGER:
+    if current_user.role != UserRole.manager:
         raise HTTPException(status_code=403, detail="Only managers can add users to groups")
 
     group = await db.get(Group, group_id)
@@ -124,7 +152,7 @@ async def remove_user_from_group(
         current_user: User = Depends(get_current_user),
         db: AsyncSession = Depends(get_db)
 ):
-    if current_user.role != UserRole.MANAGER:
+    if current_user.role != UserRole.manager:
         raise HTTPException(status_code=403, detail="Only managers can remove users from groups")
 
     group = await db.get(Group, group_id)

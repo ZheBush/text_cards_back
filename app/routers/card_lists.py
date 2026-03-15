@@ -11,7 +11,7 @@ from app.models.card import Card
 from app.models.card_list import CardList
 from app.models.group import Group, user_group
 from app.models.user import User, UserRole
-from app.schemas.card_list import FileUploadResponse, CardListResponse
+from app.schemas.card_list import FileUploadResponse, CardListResponse, GroupFileUploadResponse
 from app.services.extract_text import extract_text_from_pdf, extract_text_from_txt
 from app.services.model import generate_cards
 
@@ -30,53 +30,72 @@ async def get_user_card_lists(
     return card_lists
 
 
-@router.post("/upload_text", response_model=FileUploadResponse)
+@router.post("/upload_text", response_model=GroupFileUploadResponse)
 async def upload_text(
         text: str = Form(...),
         title: str = Form(...),
         cards_num: int = Form(...),
+        group_id: str = Form(...),
         current_user = Depends(get_current_user),
         db: AsyncSession = Depends(get_db),
 ):
-    card_list_id = generate_uuid()
-
-    new_card_list = CardList(
-        id=card_list_id,
-        title=title,
-        user_id=current_user.id,
+    stmt = select(user_group).where(
+        user_group.c.user_id == current_user.id,
+        user_group.c.group_id == group_id,
+        user_group.c.role_in_group == 'manager'
     )
+    result = await db.execute(stmt)
 
-    db.add(new_card_list)
+    if not result.first() and not current_user.role == "manager":
+        raise HTTPException(status_code=403, detail="You are not a manager of this group")
+
+    members_result = await db.execute(
+        select(user_group.c.user_id).where(user_group.c.group_id == group_id)
+    )
+    member_ids = [row[0] for row in members_result.all()]
+
+    if not member_ids:
+        raise HTTPException(status_code=400, detail="Group has no members")
+
     await db.flush()
 
     cards = await generate_cards(text, cards_num)
-    created_cards = []
+    all_created_cards = []
 
-    for card in cards:
-        card = Card(
+    for member_id in member_ids:
+        card_list_id = generate_uuid()
+        new_card_list = CardList(
+            id=card_list_id,
+            title=title,
+            user_id=member_id,
+            group_id=group_id
+        )
+        db.add(new_card_list)
+        await db.flush()
+
+        for card_data in cards:
+            card = Card(
                 id=generate_uuid(),
-                question=card["question"],
-                answer=card["answer"],
-                user_id=current_user.id,
+                question=card_data["question"],
+                answer=card_data["answer"],
+                user_id=member_id,
                 card_list_id=card_list_id,
             )
-        db.add(card)
-        created_cards.append(card)
+            db.add(card)
+            all_created_cards.append(card)
 
     await db.commit()
-    await db.refresh(new_card_list)
-
-    for card in created_cards:
-        await db.refresh(card)
 
     return {
-        "card_list_id": card_list_id,
+        "group_id": group_id,
         "title": title,
-        "message": "File processed successfully",
+        "message": f"Cards generated successfully for {len(member_ids)} members",
+        "cards_count": len(cards),
+        "member_count": len(member_ids)
     }
 
 
-@router.post("/upload_txt", response_model=FileUploadResponse)
+@router.post("/upload_txt", response_model=GroupFileUploadResponse)
 async def upload_txt_file(
         title: str = Form(...),
         cards_num: int = Form(...),
@@ -267,148 +286,4 @@ async def guest_upload_pdf_file(
         "cards": cards_data,
         "filename": file.filename,
         "message": "Cards generated successfully from PDF (guest mode)",
-    }
-
-
-@router.post("/upload_text", response_model=FileUploadResponse)
-async def upload_text(
-    text: str = Form(...),
-    title: str = Form(...),
-    cards_num: int = Form(...),
-    target_user_id: Optional[str] = Form(None),
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
-):
-    user_id_for_cards = await check_manager_permission(current_user, target_user_id, db)
-
-    card_list_id = generate_uuid()
-    new_card_list = CardList(
-        id=card_list_id,
-        title=title,
-        user_id=user_id_for_cards,
-    )
-    db.add(new_card_list)
-    await db.flush()
-
-    cards_data = await generate_cards(text, cards_num)
-    created_cards = []
-
-    for card in cards_data:
-        card = Card(
-            id=generate_uuid(),
-            question=card["question"],
-            answer=card["answer"],
-            user_id=user_id_for_cards,
-            card_list_id=card_list_id,
-        )
-        db.add(card)
-        created_cards.append(card)
-
-    await db.commit()
-    await db.refresh(new_card_list)
-    for card in created_cards:
-        await db.refresh(card)
-
-    return {
-        "card_list_id": card_list_id,
-        "title": title,
-        "message": "Text processed successfully",
-    }
-
-
-@router.post("/upload_txt", response_model=FileUploadResponse)
-async def upload_txt_file(
-    title: str = Form(...),
-    cards_num: int = Form(...),
-    file: UploadFile = File(...),
-    target_user_id: Optional[str] = Form(None),
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
-):
-    user_id_for_cards = await check_manager_permission(current_user, target_user_id, db)
-
-    content = await file.read()
-    text = extract_text_from_txt(content)
-
-    card_list_id = generate_uuid()
-    new_card_list = CardList(
-        id=card_list_id,
-        title=title,
-        user_id=user_id_for_cards,
-    )
-    db.add(new_card_list)
-    await db.flush()
-
-    cards_data = await generate_cards(text, cards_num)
-    created_cards = []
-
-    for card in cards_data:
-        card = Card(
-            id=generate_uuid(),
-            question=card["question"],
-            answer=card["answer"],
-            user_id=user_id_for_cards,
-            card_list_id=card_list_id,
-        )
-        db.add(card)
-        created_cards.append(card)
-
-    await db.commit()
-    await db.refresh(new_card_list)
-    for card in created_cards:
-        await db.refresh(card)
-
-    return {
-        "card_list_id": card_list_id,
-        "title": title,
-        "message": "TXT file processed successfully",
-    }
-
-
-@router.post("/upload_pdf", response_model=FileUploadResponse)
-async def upload_pdf_file(
-    title: str = Form(...),
-    cards_num: int = Form(...),
-    file: UploadFile = File(...),
-    target_user_id: Optional[str] = Form(None),
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
-):
-    user_id_for_cards = await check_manager_permission(current_user, target_user_id, db)
-
-    content = await file.read()
-    text = extract_text_from_pdf(content)
-
-    card_list_id = generate_uuid()
-    new_card_list = CardList(
-        id=card_list_id,
-        title=title,
-        user_id=user_id_for_cards,
-    )
-    db.add(new_card_list)
-    await db.flush()
-
-    cards_data = await generate_cards(text, cards_num)
-    created_cards = []
-
-    for card in cards_data:
-        card = Card(
-            id=generate_uuid(),
-            question=card["question"],
-            answer=card["answer"],
-            user_id=user_id_for_cards,
-            card_list_id=card_list_id,
-        )
-        db.add(card)
-        created_cards.append(card)
-
-    await db.commit()
-    await db.refresh(new_card_list)
-    for card in created_cards:
-        await db.refresh(card)
-
-    return {
-        "card_list_id": card_list_id,
-        "title": title,
-        "message": "PDF file processed successfully",
     }
