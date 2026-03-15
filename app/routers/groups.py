@@ -91,7 +91,7 @@ async def get_group_card_lists(
             detail="You are not a member of this group"
         )
 
-    stmt = select(CardList).where(CardList.group_id == group_id)
+    stmt = select(CardList).where(CardList.group_id == group_id, CardList.user_id == current_user.id)
     result = await db.execute(stmt)
 
     card_lists = result.scalars().all()
@@ -188,3 +188,26 @@ async def remove_user_from_group(
     await db.commit()
 
     return {"message": "User removed from group"}
+
+
+@router.get("/{group_id}/users")
+async def get_group_users(
+        group_id: str,
+        current_user: User = Depends(get_current_user),
+        db: AsyncSession = Depends(get_db)
+):
+    stmt = select(user_group).where(
+        user_group.c.user_id == current_user.id,
+        user_group.c.group_id == group_id
+    )
+    result = await db.execute(stmt)
+    if not result.first():
+        raise HTTPException(status_code=403, detail="You are not a member of this group")
+
+    stmt = select(User.id, User.email, user_group.c.role_in_group).where(
+        user_group.c.group_id == group_id,
+        user_group.c.user_id == User.id
+    )
+    result = await db.execute(stmt)
+    users = result.all()
+    return [{"id": u.id, "email": u.email, "role_in_group": u.role_in_group} for u in users]

@@ -10,7 +10,7 @@ class Card(Base):
     id = Column(String, primary_key=True, default=generate_uuid)
     question = Column(Text, nullable=False)
     answer = Column(Text, nullable=False)
-    user_id = Column(String, ForeignKey("users.id"), nullable=False)
+    user_id = Column(String, ForeignKey("users.id"), nullable=True)
     card_list_id = Column(String, ForeignKey("card_lists.id"), nullable=False)
 
     card_list = relationship("CardList", back_populates="cards")

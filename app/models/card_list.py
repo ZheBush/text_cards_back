@@ -11,7 +11,7 @@ class CardList(Base):
 
     id = Column(String, primary_key=True, default=generate_uuid)
     title = Column(String, nullable=False)
-    user_id = Column(String, ForeignKey("users.id"), nullable=False)
+    user_id = Column(String, ForeignKey("users.id"), nullable=True)
     group_id = Column(String, ForeignKey("groups.id"))
 
     user = relationship("User", back_populates="card_lists")

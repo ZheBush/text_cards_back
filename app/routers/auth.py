@@ -3,6 +3,7 @@ from datetime import timedelta
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 
 from app.core.config import settings
 from app.core.database import get_db
@@ -10,10 +11,10 @@ from app.core.security import (
     create_access_token,
     get_user_by_email,
     hash_password,
-    verify_password,
+    verify_password, get_current_user,
 )
 from app.core.utils import generate_uuid
-from app.models.user import User
+from app.models.user import User, UserRole
 from app.schemas.user import Token, UserCreate, UserResponse
 
 router = APIRouter()
@@ -44,6 +45,20 @@ async def register_user(
     await db.refresh(new_user)
 
     return new_user
+
+
+@router.get("/users/search")
+async def search_users(
+        email: str,
+        current_user = Depends(get_current_user),
+        db: AsyncSession = Depends(get_db)
+):
+    if current_user.role != UserRole.manager:
+        raise HTTPException(status_code=403, detail="Only managers can search users")
+
+    result = await db.execute(select(User).where(User.email.ilike(f"%{email}%")))
+    users = result.scalars().all()
+    return [{"id": u.id, "email": u.email} for u in users]
 
 
 @router.post("/login", response_model=Token)
