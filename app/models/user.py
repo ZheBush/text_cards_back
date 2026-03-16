@@ -23,4 +23,5 @@ class User(Base):
 
     groups = relationship('Group', secondary='user_group', back_populates='members', lazy='selectin')
     card_lists = relationship("CardList", back_populates="user", cascade="all, delete-orphan")
+    refresh_tokens = relationship("RefreshToken", back_populates="user", cascade="all, delete-orphan", lazy='selectin')
 
