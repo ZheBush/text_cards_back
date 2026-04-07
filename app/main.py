@@ -2,7 +2,7 @@ import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routers import auth, cards, card_lists, groups, files
+from app.routers import auth, cards, card_lists, groups, files, weather
 
 app = FastAPI(title="cards from text")
 
@@ -26,6 +26,7 @@ app.include_router(card_lists.router, prefix="/card_lists", tags=["card_lists"])
 app.include_router(cards.router, prefix="/cards", tags=["cards"])
 app.include_router(groups.router, prefix="/groups", tags=["groups"])
 app.include_router(files.router)
+app.include_router(weather.router)
 
 if __name__ == "__main__":
     uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)

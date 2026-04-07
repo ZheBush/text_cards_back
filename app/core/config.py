@@ -16,6 +16,8 @@ class Settings:
     S3_ACCESS_KEY = os.getenv("S3_ACCESS_KEY", "minioadmin")
     S3_SECRET_KEY = os.getenv("S3_SECRET_KEY", "minioadmin")
     S3_REGION = os.getenv("S3_REGION", "us-east-1")
+    WEATHER_API_KEY = os.getenv("WEATHER_API_KEY", "")
+    WEATHER_API_URL = os.getenv("WEATHER_API_URL", "http://api.openweathermap.org/data/2.5/weather")
 
 
 settings = Settings()
