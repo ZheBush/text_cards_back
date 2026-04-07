@@ -17,6 +17,7 @@ class CardList(Base):
     user = relationship("User", back_populates="card_lists")
     cards = relationship("Card", back_populates="card_list", cascade="all, delete-orphan")
     group = relationship("Group", back_populates="card_lists")
+    files = relationship("CardListFile", back_populates="card_list", cascade="all, delete-orphan")
 
     cards_count = column_property(
         select(func.count(Card.id))

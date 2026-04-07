@@ -117,7 +117,6 @@ async def refresh_user_token(
 
     user, refresh_record = await verify_refresh_token(refresh_token, db)
 
-    # revoke previous refresh token
     refresh_record.revoked = True
     await db.commit()
 

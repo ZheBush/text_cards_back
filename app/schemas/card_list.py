@@ -1,5 +1,4 @@
-from datetime import datetime
-from typing import Optional
+from typing import Optional, List
 from pydantic import BaseModel
 
 
@@ -24,3 +23,11 @@ class GroupFileUploadResponse(BaseModel):
     member_count: Optional[int] = None
     cards_count: int
     member_count: int
+
+
+class PaginatedCardListResponse(BaseModel):
+    items: List[CardListResponse]
+    total: int
+    page: int
+    per_page: int
+    pages: int

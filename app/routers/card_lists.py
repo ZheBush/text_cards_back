@@ -1,9 +1,13 @@
+from datetime import datetime
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, File, UploadFile, Form, HTTPException
-from sqlalchemy import select
+from fastapi import APIRouter, Depends, File, UploadFile, Form, HTTPException, Query
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
+from pydantic import BaseModel
 
+from app.core.config import settings
+from app.core.s3 import upload_file_to_s3, generate_presigned_url
 from app.core.database import get_db
 from app.core.security import get_current_user
 from app.core.utils import generate_uuid
@@ -11,23 +15,72 @@ from app.models.card import Card
 from app.models.card_list import CardList
 from app.models.group import Group, user_group
 from app.models.user import User, UserRole
-from app.schemas.card_list import FileUploadResponse, CardListResponse, GroupFileUploadResponse
+from app.models.cardlistfile import CardListFile
+from app.schemas.card_list import FileUploadResponse, CardListResponse, GroupFileUploadResponse, PaginatedCardListResponse
 from app.services.extract_text import extract_text_from_pdf, extract_text_from_txt
 from app.services.model import generate_cards
 
 router = APIRouter()
 
 
-@router.get("/", response_model=List[CardListResponse])
+class CardListFilter(BaseModel):
+    search: Optional[str] = None
+    group_id: Optional[str] = None
+    date_from: Optional[datetime] = None
+    date_to: Optional[datetime] = None
+    sort_by: str = "created_at"
+    order: str = "desc"
+    page: int = 1
+    per_page: int = 10
+
+
+@router.get("/", response_model=PaginatedCardListResponse)
 async def get_user_card_lists(
-        current_user = Depends(get_current_user),
-        db: AsyncSession = Depends(get_db)
+    search: Optional[str] = Query(None),
+    group_id: Optional[str] = Query(None),
+    date_from: Optional[datetime] = Query(None),
+    date_to: Optional[datetime] = Query(None),
+    sort_by: str = Query("created_at", regex="^(title|created_at)$"),
+    order: str = Query("desc", regex="^(asc|desc)$"),
+    page: int = Query(1, ge=1),
+    per_page: int = Query(10, ge=1, le=100),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ):
     query = select(CardList).where(CardList.user_id == current_user.id)
-    result = await db.execute(query)
-    card_lists = result.scalars().all()
 
-    return card_lists
+    if search:
+        query = query.where(CardList.title.ilike(f"%{search}%"))
+    if group_id:
+        query = query.where(CardList.group_id == group_id)
+    if date_from:
+        query = query.where(CardList.created_at >= date_from)
+    if date_to:
+        query = query.where(CardList.created_at <= date_to)
+
+    if sort_by == "title":
+        order_col = CardList.title
+    else:
+        order_col = CardList.created_at
+    if order == "desc":
+        query = query.order_by(order_col.desc())
+    else:
+        query = query.order_by(order_col.asc())
+
+    total = await db.execute(select(func.count()).select_from(query.subquery()))
+    total_count = total.scalar()
+    query = query.offset((page - 1) * per_page).limit(per_page)
+
+    result = await db.execute(query)
+    items = result.scalars().all()
+
+    return {
+        "items": items,
+        "total": total_count,
+        "page": page,
+        "per_page": per_page,
+        "pages": (total_count + per_page - 1) // per_page,
+    }
 
 
 @router.post("/upload_text", response_model=GroupFileUploadResponse)
@@ -136,8 +189,8 @@ async def upload_txt_file(
     cards_num: int = Form(...),
     file: UploadFile = File(...),
     group_id: Optional[str] = Form(None),
-    current_user: Optional[User] = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    current_user = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
 ):
     content = await file.read()
     text = extract_text_from_txt(content)
@@ -167,6 +220,10 @@ async def upload_txt_file(
         cards = await generate_cards(text, cards_num)
 
         for member_id in member_ids:
+
+            file_key = f"groups/{group_id}/card_lists/{generate_uuid()}/{file.filename}"
+            upload_file_to_s3(content, settings.S3_BUCKET, file_key, file.content_type)
+
             card_list_id = generate_uuid()
 
             new_card_list = CardList(
@@ -177,6 +234,16 @@ async def upload_txt_file(
             )
             db.add(new_card_list)
             await db.flush()
+
+            db_file = CardListFile(
+                filename=file.filename,
+                file_key=file_key,
+                mime_type=file.content_type,
+                size=len(content),
+                card_list_id=card_list_id,
+                user_id=member_id,
+            )
+            db.add(db_file)
 
             for card_data in cards:
                 card = Card(
@@ -237,11 +304,14 @@ async def upload_pdf_file(
     cards_num: int = Form(...),
     file: UploadFile = File(...),
     group_id: Optional[str] = Form(None),
-    current_user: Optional[User] = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    current_user = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
 ):
     content = await file.read()
     text = extract_text_from_pdf(content)
+
+    file_key = f"groups/{group_id}/card_lists/{generate_uuid()}/{file.filename}"
+    upload_file_to_s3(content, settings.S3_BUCKET, file_key, file.content_type)
 
     if group_id:
         if not current_user:
@@ -351,7 +421,7 @@ async def check_manager_permission(
     if target_user_id is None:
         return current_user.id
 
-    if current_user.role != UserRole.MANAGER:
+    if current_user.role != UserRole.manager:
         raise HTTPException(
             status_code=403,
             detail="Only managers can create cards for other users"

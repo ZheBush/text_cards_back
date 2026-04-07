@@ -14,3 +14,4 @@ class Card(Base):
     card_list_id = Column(String, ForeignKey("card_lists.id"), nullable=False)
 
     card_list = relationship("CardList", back_populates="cards")
+    files = relationship("CardListFile", back_populates="card", cascade="all, delete-orphan")

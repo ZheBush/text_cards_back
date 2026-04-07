@@ -21,6 +21,7 @@ class User(Base):
     created_at = Column(DateTime(timezone=True), default=datetime.now(timezone.utc))
     role = Column(Enum(UserRole), default=UserRole.user, nullable=False)
 
+    files = relationship("CardListFile", back_populates="user", cascade="all, delete-orphan")
     groups = relationship('Group', secondary='user_group', back_populates='members', lazy='selectin')
     card_lists = relationship("CardList", back_populates="user", cascade="all, delete-orphan")
     refresh_tokens = relationship("RefreshToken", back_populates="user", cascade="all, delete-orphan", lazy='selectin')

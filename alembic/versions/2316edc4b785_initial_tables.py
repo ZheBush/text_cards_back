@@ -75,11 +75,32 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("user_id", "group_id"),
     )
 
+    op.create_table(
+        'files',
+        sa.Column('id', sa.String(), nullable=False),
+        sa.Column('filename', sa.String(), nullable=False),
+        sa.Column('file_key', sa.String(), nullable=False),
+        sa.Column('mime_type', sa.String(), nullable=False),
+        sa.Column('size', sa.Integer(), nullable=False),
+        sa.Column('card_list_id', sa.String(), nullable=True),
+        sa.Column('card_id', sa.String(), nullable=True),
+        sa.Column('user_id', sa.String(), nullable=False),
+        sa.Column('uploaded_at', sa.DateTime(timezone=True), nullable=True),
+        sa.ForeignKeyConstraint(['card_list_id'], ['card_lists.id'], ondelete='CASCADE'),
+        sa.ForeignKeyConstraint(['card_id'], ['cards.id'], ondelete='CASCADE'),
+        sa.ForeignKeyConstraint(['user_id'], ['users.id'], ondelete='CASCADE'),
+        sa.PrimaryKeyConstraint('id'),
+        sa.UniqueConstraint('file_key')
+    )
+
     op.create_index("ix_card_lists_user_id", "card_lists", ["user_id"])
     op.create_index("ix_card_lists_group_id", "card_lists", ["group_id"])
     op.create_index("ix_groups_created_by", "groups", ["created_by"])
     op.create_index("ix_user_group_group_id", "user_group", ["group_id"])
     op.create_index("ix_user_group_user_id", "user_group", ["user_id"])
+    op.create_index('ix_files_card_list_id', 'files', ['card_list_id'])
+    op.create_index('ix_files_card_id', 'files', ['card_id'])
+    op.create_index('ix_files_user_id', 'files', ['user_id'])
 
 
 def downgrade() -> None:
@@ -95,5 +116,6 @@ def downgrade() -> None:
     op.drop_table("card_lists")
     op.drop_table("groups")
     op.drop_table("users")
+    op.drop_table('files')
 
     op.execute("DROP TYPE IF EXISTS userrole")
