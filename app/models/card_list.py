@@ -1,5 +1,6 @@
-from sqlalchemy import Column, ForeignKey, String, func, select
+from sqlalchemy import Column, ForeignKey, String, func, select, DateTime
 from sqlalchemy.orm import column_property, relationship
+from datetime import datetime, timezone
 
 from app.core.database import Base
 from app.core.utils import generate_uuid
@@ -13,6 +14,7 @@ class CardList(Base):
     title = Column(String, nullable=False)
     user_id = Column(String, ForeignKey("users.id"), nullable=True)
     group_id = Column(String, ForeignKey("groups.id"))
+    created_at = Column(DateTime(timezone=True), default=datetime.now(timezone.utc))
 
     user = relationship("User", back_populates="card_lists")
     cards = relationship("Card", back_populates="card_list", cascade="all, delete-orphan")

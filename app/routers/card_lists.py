@@ -36,17 +36,18 @@ class CardListFilter(BaseModel):
 
 @router.get("/", response_model=PaginatedCardListResponse)
 async def get_user_card_lists(
-    search: Optional[str] = Query(None),
-    group_id: Optional[str] = Query(None),
-    date_from: Optional[datetime] = Query(None),
-    date_to: Optional[datetime] = Query(None),
-    sort_by: str = Query("created_at", regex="^(title|created_at)$"),
-    order: str = Query("desc", regex="^(asc|desc)$"),
-    page: int = Query(1, ge=1),
-    per_page: int = Query(10, ge=1, le=100),
+    search: Optional[str] = Query(None, description="Search by title"),
+    group_id: Optional[str] = Query(None, description="Filter by group ID"),
+    date_from: Optional[datetime] = Query(None, description="Start date (created_at)"),
+    date_to: Optional[datetime] = Query(None, description="End date (created_at)"),
+    sort_by: str = Query("created_at", regex="^(created_at|title)$", description="Sort field"),
+    order: str = Query("desc", regex="^(asc|desc)$", description="Sort order"),
+    page: int = Query(1, ge=1, description="Page number"),
+    per_page: int = Query(10, ge=1, le=100, description="Items per page"),
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db)
 ):
+
     query = select(CardList).where(CardList.user_id == current_user.id)
 
     if search:
@@ -62,13 +63,16 @@ async def get_user_card_lists(
         order_col = CardList.title
     else:
         order_col = CardList.created_at
-    if order == "desc":
-        query = query.order_by(order_col.desc())
-    else:
-        query = query.order_by(order_col.asc())
 
-    total = await db.execute(select(func.count()).select_from(query.subquery()))
+    if order == "asc":
+        query = query.order_by(order_col.asc())
+    else:
+        query = query.order_by(order_col.desc())
+
+    count_query = select(func.count()).select_from(query.subquery())
+    total = await db.execute(count_query)
     total_count = total.scalar()
+
     query = query.offset((page - 1) * per_page).limit(per_page)
 
     result = await db.execute(query)
@@ -79,7 +83,7 @@ async def get_user_card_lists(
         "total": total_count,
         "page": page,
         "per_page": per_page,
-        "pages": (total_count + per_page - 1) // per_page,
+        "pages": (total_count + per_page - 1) // per_page
     }
 
 
@@ -438,17 +442,6 @@ async def check_manager_permission(
         )
 
     return target_user_id
-
-
-@router.get("/", response_model=List[CardListResponse])
-async def get_user_card_lists(
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
-):
-    query = select(CardList).where(CardList.user_id == current_user.id)
-    result = await db.execute(query)
-    card_lists = result.scalars().all()
-    return card_lists
 
 
 @router.post("/guest/upload_text")
