@@ -34,6 +34,18 @@ class CardListFilter(BaseModel):
     per_page: int = 10
 
 
+@router.get("/{card_list_id}", response_model=CardListResponse)
+async def get_card_list_by_id(
+    card_list_id: str,
+    current_user = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    card_list = await db.get(CardList, card_list_id)
+    if not card_list or card_list.user_id != current_user.id:
+        raise HTTPException(404, "Card list not found")
+    return card_list
+
+
 @router.get("/", response_model=PaginatedCardListResponse)
 async def get_user_card_lists(
     search: Optional[str] = Query(None, description="Search by title"),
