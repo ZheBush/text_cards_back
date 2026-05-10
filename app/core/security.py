@@ -71,8 +71,12 @@ async def verify_refresh_token(token: str, db: AsyncSession):
 
     if not refresh_record or refresh_record.revoked:
         raise credentials_exception
+    
+    expires_at = refresh_record.expires_at
+    if expires_at.tzinfo is None:   
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
 
-    if refresh_record.expires_at < datetime.now(timezone.utc):
+    if expires_at < datetime.now(timezone.utc):
         raise HTTPException(status_code=401, detail="Refresh token expired")
 
     user = await get_user_by_email(email, db)
