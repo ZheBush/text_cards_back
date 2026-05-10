@@ -94,3 +94,39 @@ async def test_fetch_weather_http_error_raises(monkeypatch):
 def test_parse_json_returns_empty_when_no_json_array():
     result = parse_json('some text without a json array')
     assert result == []
+
+
+def test_parse_json_with_nested_objects():
+    """Test parsing JSON with nested objects"""
+    raw = '[{"question": "Q1", "metadata": {"difficulty": "hard"}, "answer": "A1"}]'
+    result = parse_json(raw)
+    assert isinstance(result, list)
+    assert len(result) == 1
+    assert result[0]["metadata"]["difficulty"] == "hard"
+
+
+def test_parse_json_empty_array():
+    """Test parsing empty JSON array"""
+    raw = '[]'
+    result = parse_json(raw)
+    assert isinstance(result, list)
+    assert len(result) == 0
+
+
+@pytest.mark.asyncio
+async def test_fetch_weather_success_with_wind(monkeypatch):
+    """Test weather fetch with wind speed"""
+    fake_data = {
+        "name": "London",
+        "main": {"temp": 15.2, "feels_like": 14.8, "humidity": 75},
+        "weather": [{"description": "облачно", "icon": "04d"}],
+        "wind": {"speed": 5.5}
+    }
+    response = FakeResponse(status_code=200, body=fake_data)
+    monkeypatch.setattr(httpx, 'AsyncClient', lambda *args, **kwargs: FakeClient(response))
+    monkeypatch.setattr(config.settings, 'WEATHER_API_KEY', 'dummy-key')
+
+    result = await fetch_weather('London')
+    assert result['city'] == 'London'
+    assert result['temperature'] == 15
+    assert result['wind_speed'] == 5.5

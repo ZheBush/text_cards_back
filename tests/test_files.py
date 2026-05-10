@@ -90,3 +90,42 @@ async def test_delete_file_forbidden_for_non_owner(client: AsyncClient, monkeypa
     )
     assert delete_response.status_code == 404
     assert delete_response.json()["detail"] == "CardListFile not found"
+
+
+@pytest.mark.asyncio
+async def test_upload_pdf_file(client: AsyncClient, monkeypatch):
+    """Test uploading PDF file"""
+    login_response = await register_and_login(client, "pdf@example.com", "secret123")
+    token = login_response.json()["access_token"]
+    
+    monkeypatch.setattr(s3.s3_client, "put_object", lambda **kwargs: None)
+    monkeypatch.setattr("app.routers.files.generate_presigned_url", 
+                        lambda bucket, key, expires_in=3600: f"https://s3.fake/{key}")
+    
+    response = await client.post(
+        "/files/upload",
+        headers={"Authorization": f"Bearer {token}"},
+        files={"file": ("document.pdf", b"%PDF-1.4", "application/pdf")},
+    )
+    assert response.status_code == 200
+    assert response.json()["filename"] == "document.pdf"
+
+
+@pytest.mark.asyncio
+async def test_upload_png_file(client: AsyncClient, monkeypatch):
+    """Test uploading PNG image file"""
+    login_response = await register_and_login(client, "png@example.com", "secret123")
+    token = login_response.json()["access_token"]
+    
+    monkeypatch.setattr(s3.s3_client, "put_object", lambda **kwargs: None)
+    monkeypatch.setattr("app.routers.files.generate_presigned_url", 
+                        lambda bucket, key, expires_in=3600: f"https://s3.fake/{key}")
+    
+    response = await client.post(
+        "/files/upload",
+        headers={"Authorization": f"Bearer {token}"},
+        files={"file": ("image.png", b"\\x89PNG\\r\\n", "image/png")},
+    )
+    assert response.status_code == 200
+    assert response.json()["filename"] == "image.png"
+

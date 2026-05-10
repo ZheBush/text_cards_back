@@ -99,3 +99,14 @@ async def test_user_search_requires_manager_role(client: AsyncClient):
     response_body = manager_search.json()
     assert isinstance(response_body, list)
     assert response_body[0]["email"] == "member@example.com"
+
+
+@pytest.mark.asyncio
+async def test_login_preserves_user_role(client: AsyncClient):
+    """Test that login response contains user role"""
+    await register_user(client, "roletest@example.com", "pass123", role=UserRole.user.value)
+    login_response = await login_user(client, "roletest@example.com", "pass123")
+    assert login_response.status_code == 200
+    data = login_response.json()
+    assert data["role"] == UserRole.user.value
+    assert "user_id" in data
